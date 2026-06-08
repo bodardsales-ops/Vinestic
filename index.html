@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vinestic · Calculateur de Marge</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0e1311;
+    --panel: #151c19;
+    --panel-2: #1c2622;
+    --line: #2a3631;
+    --wine: #7d2230;
+    --wine-bright: #c0394b;
+    --gold: #c9a86a;
+    --gold-soft: #e3cd9e;
+    --green: #4bbf8a;
+    --red: #e06262;
+    --text: #eef3f0;
+    --muted: #8aa098;
+    --muted-2: #5f726b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(125,34,48,0.18), transparent 45%),
+      radial-gradient(circle at 90% 100%, rgba(201,168,106,0.10), transparent 40%),
+      var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  header { margin-bottom: 38px; }
+  .brand {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  }
+  .brand h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 900;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .brand h1 .accent { color: var(--gold); font-style: italic; }
+  .brand .tag {
+    font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.28em;
+    color: var(--muted-2); border-left: 1px solid var(--line); padding-left: 14px;
+  }
+  .sub { color: var(--muted); margin-top: 10px; font-size: 0.95rem; max-width: 640px; }
+
+  .grid { display: grid; grid-template-columns: 1fr; gap: 22px; }
+  @media (min-width: 920px) { .grid { grid-template-columns: 380px 1fr; align-items: start; } }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 26px;
+    position: relative;
+  }
+  .card::before {
+    content: ''; position: absolute; inset: 0 0 auto 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--wine-bright), var(--gold), transparent);
+    opacity: 0.5; border-radius: 16px 16px 0 0;
+  }
+  .card h2 {
+    font-family: 'Fraunces', serif; font-weight: 600; font-size: 1.35rem;
+    margin-bottom: 4px;
+  }
+  .card .hint { color: var(--muted); font-size: 0.84rem; margin-bottom: 20px; }
+
+  label { display: block; font-size: 0.8rem; color: var(--gold-soft); margin: 16px 0 6px; letter-spacing: 0.02em; }
+  .field-row { display: flex; gap: 14px; }
+  .field-row > div { flex: 1; }
+
+  input[type="date"], input[type="number"] {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--line);
+    color: var(--text); padding: 12px 14px; border-radius: 10px;
+    font-family: 'Outfit', sans-serif; font-size: 1rem; transition: border-color .2s;
+  }
+  input:focus { outline: none; border-color: var(--gold); }
+  input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  input[type=number] { -moz-appearance: textfield; }
+
+  .btn {
+    width: 100%; margin-top: 24px; padding: 14px;
+    background: linear-gradient(135deg, var(--wine), var(--wine-bright));
+    color: #fff; border: none; border-radius: 10px; cursor: pointer;
+    font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 1rem;
+    letter-spacing: 0.03em; transition: transform .12s, box-shadow .2s;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(192,57,75,0.3); }
+  .btn:active { transform: translateY(0); }
+
+  .live-preview {
+    margin-top: 22px; padding: 16px; background: var(--panel-2);
+    border-radius: 10px; border: 1px dashed var(--line);
+  }
+  .live-preview .lp-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted-2); margin-bottom: 10px; }
+  .lp-row { display: flex; justify-content: space-between; font-size: 0.9rem; padding: 4px 0; }
+  .lp-row span:last-child { font-variant-numeric: tabular-nums; }
+  .lp-net { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 10px; font-weight: 600; font-size: 1.05rem; }
+
+  .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 22px; }
+  @media (min-width: 600px) { .kpis { grid-template-columns: repeat(4, 1fr); } }
+  .kpi {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px 18px; position: relative; overflow: hidden;
+  }
+  .kpi .k-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--muted); }
+  .kpi .k-val { font-family: 'Fraunces', serif; font-weight: 600; font-size: 1.7rem; margin-top: 8px; font-variant-numeric: tabular-nums; }
+  .kpi .k-sub { font-size: 0.78rem; color: var(--muted-2); margin-top: 4px; }
+  .kpi.accent-gold .k-val { color: var(--gold); }
+  .kpi.accent-green .k-val { color: var(--green); }
+  .kpi.accent-red .k-val { color: var(--red); }
+
+  .charts { display: grid; grid-template-columns: 1fr; gap: 22px; }
+  @media (min-width: 720px) { .charts { grid-template-columns: 1.4fr 1fr; } }
+  .chart-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+  .chart-card h3 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 1.05rem; margin-bottom: 16px; }
+  .chart-box { position: relative; height: 240px; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.86rem; }
+  th, td { text-align: right; padding: 11px 10px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 500; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; }
+  tbody tr:hover { background: var(--panel-2); }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+  .del-btn { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 6px; cursor: pointer; padding: 4px 9px; font-size: 0.78rem; transition: .2s; }
+  .del-btn:hover { border-color: var(--red); color: var(--red); }
+
+  .empty { text-align: center; color: var(--muted-2); padding: 50px 20px; font-style: italic; }
+
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+  .toolbar button {
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--muted);
+    padding: 8px 16px; border-radius: 8px; cursor: pointer; font-family: 'Outfit'; font-size: 0.85rem; transition: .2s;
+  }
+  .toolbar button:hover { color: var(--text); border-color: var(--gold); }
+  .section-title { font-family: 'Fraunces', serif; font-size: 1.3rem; margin: 36px 0 16px; }
+  .scroll-x { overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>Vinestic <span class="accent">Marge</span></h1>
+      <span class="tag">Le Sceptre · Tableau de bord</span>
+    </div>
+    <p class="sub">Enregistrez vos commandes et budget Meta chaque jour. Le calculateur déduit TVA, COGS, frais de paiement et pub pour révéler votre marge nette réelle.</p>
+  </header>
+
+  <div class="grid">
+    <!-- SAISIE -->
+    <div class="card">
+      <h2>Saisie du jour</h2>
+      <p class="hint">Renseignez vos chiffres puis enregistrez.</p>
+
+      <label for="date">Date</label>
+      <input type="date" id="date">
+
+      <div class="field-row">
+        <div>
+          <label for="p1">Cmd. Pack 29,90€</label>
+          <input type="number" id="p1" min="0" placeholder="0" value="0">
+        </div>
+        <div>
+          <label for="p2">Cmd. Pack 59,80€</label>
+          <input type="number" id="p2" min="0" placeholder="0" value="0">
+        </div>
+      </div>
+
+      <label for="ads">Budget pub Meta (€)</label>
+      <input type="number" id="ads" min="0" step="0.01" placeholder="0.00" value="0">
+
+      <div class="live-preview" id="livePreview"></div>
+
+      <button class="btn" id="saveBtn">Enregistrer ce jour</button>
+    </div>
+
+    <!-- RESULTATS -->
+    <div>
+      <div class="kpis">
+        <div class="kpi accent-gold">
+          <div class="k-label">CA Total TTC</div>
+          <div class="k-val" id="kpiCA">0,00 €</div>
+          <div class="k-sub" id="kpiHT">0,00 € HT</div>
+        </div>
+        <div class="kpi accent-green">
+          <div class="k-label">Marge Nette</div>
+          <div class="k-val" id="kpiNet">0,00 €</div>
+          <div class="k-sub" id="kpiMargin">—</div>
+        </div>
+        <div class="kpi">
+          <div class="k-label">Dépense Pub</div>
+          <div class="k-val" id="kpiAds">0,00 €</div>
+          <div class="k-sub" id="kpiRoas">ROAS —</div>
+        </div>
+        <div class="kpi">
+          <div class="k-label">Commandes</div>
+          <div class="k-val" id="kpiOrders">0</div>
+          <div class="k-sub" id="kpiCpa">CPA —</div>
+        </div>
+      </div>
+
+      <div class="charts">
+        <div class="chart-card">
+          <h3>CA & Marge nette par jour</h3>
+          <div class="chart-box"><canvas id="chartTrend"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Répartition des coûts</h3>
+          <div class="chart-box"><canvas id="chartCosts"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section-title">Historique</h2>
+  <div class="toolbar">
+    <button id="exportBtn">⤓ Exporter CSV</button>
+    <button id="clearBtn">✕ Tout effacer</button>
+  </div>
+  <div class="card">
+    <div class="scroll-x">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th>P.29,90</th><th>P.59,80</th><th>Pub</th>
+            <th>CA TTC</th><th>TVA</th><th>COGS</th><th>Frais paie.</th><th>Marge nette</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="emptyState">Aucune donnée enregistrée pour le moment.</div>
+  </div>
+</div>
+
+<script>
+/* ===== CONSTANTES PRODUIT ===== */
+const CFG = {
+  pack1: { price: 29.90, cost: 6.40 },   // TTC, coût achat+livraison
+  pack2: { price: 59.80, cost: 17.10 },
+  vatRate: 0.20,        // TVA 20% à la vente, 0 à l'achat (fournisseur chinois)
+  feeRate: 0.025,       // 2,5% par commande
+  feeFixed: 0.25        // 0,25€ par commande
+};
+const KEY = 'vinestic_margin_v1';
+
+/* ===== CALCUL D'UNE JOURNÉE ===== */
+function compute(p1, p2, ads) {
+  const orders = p1 + p2;
+  const caTTC = p1 * CFG.pack1.price + p2 * CFG.pack2.price;
+  const caHT = caTTC / (1 + CFG.vatRate);
+  const vat = caTTC - caHT;                         // reversée à l'État
+  const cogs = p1 * CFG.pack1.cost + p2 * CFG.pack2.cost; // achat HT (pas de TVA déductible)
+  const payFees = caTTC * CFG.feeRate + orders * CFG.feeFixed;
+  // Marge nette = CA HT - COGS - frais paiement - pub
+  const net = caHT - cogs - payFees - ads;
+  const margin = caTTC > 0 ? (net / caTTC) * 100 : 0;
+  const roas = ads > 0 ? caTTC / ads : 0;
+  const cpa = orders > 0 ? ads / orders : 0;
+  return { orders, caTTC, caHT, vat, cogs, payFees, ads, net, margin, roas, cpa };
+}
+
+/* ===== STOCKAGE ===== */
+let data = load();
+function load() { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } }
+function persist() { localStorage.setItem(KEY, JSON.stringify(data)); }
+
+/* ===== HELPERS ===== */
+const eur = n => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const $ = id => document.getElementById(id);
+
+/* ===== LIVE PREVIEW ===== */
+function updatePreview() {
+  const p1 = +$('p1').value || 0, p2 = +$('p2').value || 0, ads = +$('ads').value || 0;
+  const r = compute(p1, p2, ads);
+  $('livePreview').innerHTML = `
+    <div class="lp-title">Aperçu en direct</div>
+    <div class="lp-row"><span>CA TTC</span><span>${eur(r.caTTC)}</span></div>
+    <div class="lp-row"><span>TVA collectée</span><span>${eur(r.vat)}</span></div>
+    <div class="lp-row"><span>Coût produits</span><span>${eur(r.cogs)}</span></div>
+    <div class="lp-row"><span>Frais paiement</span><span>${eur(r.payFees)}</span></div>
+    <div class="lp-row"><span>Pub Meta</span><span>${eur(r.ads)}</span></div>
+    <div class="lp-row lp-net"><span>Marge nette</span><span style="color:${r.net>=0?'var(--green)':'var(--red)'}">${eur(r.net)}</span></div>`;
+}
+['p1','p2','ads'].forEach(id => $(id).addEventListener('input', updatePreview));
+
+/* ===== SAVE ===== */
+$('saveBtn').addEventListener('click', () => {
+  const date = $('date').value;
+  if (!date) { alert('Choisissez une date.'); return; }
+  const entry = { date, p1: +$('p1').value || 0, p2: +$('p2').value || 0, ads: +$('ads').value || 0 };
+  const i = data.findIndex(d => d.date === date);
+  if (i >= 0) {
+    if (!confirm('Une entrée existe déjà pour cette date. La remplacer ?')) return;
+    data[i] = entry;
+  } else data.push(entry);
+  data.sort((a, b) => a.date.localeCompare(b.date));
+  persist(); render();
+  $('p1').value = 0; $('p2').value = 0; $('ads').value = 0; updatePreview();
+});
+
+/* ===== DELETE / CLEAR / EXPORT ===== */
+window.delEntry = date => { if (confirm('Supprimer cette journée ?')) { data = data.filter(d => d.date !== date); persist(); render(); } };
+$('clearBtn').addEventListener('click', () => { if (confirm('Effacer toutes les données ?')) { data = []; persist(); render(); } });
+$('exportBtn').addEventListener('click', () => {
+  if (!data.length) return;
+  const head = 'Date,Pack29.90,Pack59.80,PubMeta,CA_TTC,CA_HT,TVA,COGS,Frais_paiement,Marge_nette\n';
+  const rows = data.map(d => { const r = compute(d.p1, d.p2, d.ads);
+    return [d.date, d.p1, d.p2, d.ads.toFixed(2), r.caTTC.toFixed(2), r.caHT.toFixed(2), r.vat.toFixed(2), r.cogs.toFixed(2), r.payFees.toFixed(2), r.net.toFixed(2)].join(','); }).join('\n');
+  const blob = new Blob([head + rows], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'vinestic_marges.csv'; a.click();
+});
+
+/* ===== CHARTS ===== */
+let trendChart, costChart;
+function renderCharts(totals) {
+  const labels = data.map(d => d.date.slice(5));
+  const caSeries = data.map(d => compute(d.p1, d.p2, d.ads).caTTC);
+  const netSeries = data.map(d => compute(d.p1, d.p2, d.ads).net);
+
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart($('chartTrend'), {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: 'CA TTC', data: caSeries, borderColor: '#c9a86a', backgroundColor: 'rgba(201,168,106,.12)', fill: true, tension: .3, pointRadius: 3 },
+      { label: 'Marge nette', data: netSeries, borderColor: '#4bbf8a', backgroundColor: 'rgba(75,191,138,.12)', fill: true, tension: .3, pointRadius: 3 }
+    ]},
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#8aa098', font: { family: 'Outfit' } } } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: '#5f726b' } },
+        y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: '#5f726b', callback: v => v + '€' } }
+      } }
+  });
+
+  if (costChart) costChart.destroy();
+  costChart = new Chart($('chartCosts'), {
+    type: 'doughnut',
+    data: { labels: ['Marge nette', 'COGS', 'TVA', 'Frais paie.', 'Pub Meta'],
+      datasets: [{ data: [Math.max(totals.net,0), totals.cogs, totals.vat, totals.payFees, totals.ads],
+        backgroundColor: ['#4bbf8a', '#7d2230', '#c0394b', '#c9a86a', '#5f726b'], borderColor: '#151c19', borderWidth: 3 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '62%',
+      plugins: { legend: { position: 'bottom', labels: { color: '#8aa098', font: { family: 'Outfit' }, padding: 14, boxWidth: 12 } } } }
+  });
+}
+
+/* ===== RENDER ===== */
+function render() {
+  const t = { caTTC:0, caHT:0, vat:0, cogs:0, payFees:0, ads:0, net:0, orders:0 };
+  data.forEach(d => { const r = compute(d.p1, d.p2, d.ads);
+    t.caTTC+=r.caTTC; t.caHT+=r.caHT; t.vat+=r.vat; t.cogs+=r.cogs; t.payFees+=r.payFees; t.ads+=r.ads; t.net+=r.net; t.orders+=r.orders; });
+
+  $('kpiCA').textContent = eur(t.caTTC);
+  $('kpiHT').textContent = eur(t.caHT) + ' HT';
+  $('kpiNet').textContent = eur(t.net);
+  $('kpiNet').style.color = t.net>=0 ? 'var(--green)' : 'var(--red)';
+  $('kpiMargin').textContent = t.caTTC>0 ? (t.net/t.caTTC*100).toFixed(1)+ '% du CA' : '—';
+  $('kpiAds').textContent = eur(t.ads);
+  $('kpiRoas').textContent = t.ads>0 ? 'ROAS ' + (t.caTTC/t.ads).toFixed(2) : 'ROAS —';
+  $('kpiOrders').textContent = t.orders;
+  $('kpiCpa').textContent = t.orders>0 && t.ads>0 ? 'CPA ' + eur(t.ads/t.orders) : 'CPA —';
+
+  const tb = $('tableBody'); tb.innerHTML = '';
+  data.slice().reverse().forEach(d => {
+    const r = compute(d.p1, d.p2, d.ads);
+    tb.insertAdjacentHTML('beforeend', `<tr>
+      <td>${d.date}</td><td>${d.p1}</td><td>${d.p2}</td><td>${eur(d.ads)}</td>
+      <td>${eur(r.caTTC)}</td><td>${eur(r.vat)}</td><td>${eur(r.cogs)}</td><td>${eur(r.payFees)}</td>
+      <td class="${r.net>=0?'pos':'neg'}">${eur(r.net)}</td>
+      <td><button class="del-btn" onclick="delEntry('${d.date}')">✕</button></td></tr>`);
+  });
+  $('emptyState').style.display = data.length ? 'none' : 'block';
+
+  renderCharts(t);
+}
+
+/* ===== INIT ===== */
+$('date').value = new Date().toISOString().slice(0, 10);
+updatePreview();
+render();
+</script>
+</body>
+</html>
